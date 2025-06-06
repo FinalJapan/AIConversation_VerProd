@@ -386,6 +386,10 @@ def conversation_step():
         })
         st.session_state.total_messages += 1
         
+        # デバッグ情報を表示
+        st.success(f"✅ {current_speaker}の発言を追加しました（{len(response)}文字）")
+        st.success(f"💬 現在のメッセージ数: {len(st.session_state.messages)}")
+        
         # 制限チェック
         if st.session_state.cost_monitor.is_limit_exceeded():
             st.error("🔴 トークン上限に達しました。会話を終了します。")
@@ -396,9 +400,13 @@ def conversation_step():
         if st.session_state.cost_monitor.is_warning_threshold():
             st.warning("⚠️ トークン使用量が90%を超えました！")
         
+        # UIを更新（重要！）
+        st.rerun()
+        
     except Exception as e:
         st.error(f"❌ エラーが発生しました: {e}")
         st.info("会話を継続します...")
+        st.rerun()
 
 def main():
     """メイン関数"""
@@ -423,28 +431,39 @@ def main():
             conversation_step()
         
         # 自動実行モード
-        if st.checkbox("自動実行モード（2秒間隔）"):
-            if st.session_state.conversation_active:
-                conversation_step()
-                time.sleep(2)
-                st.rerun()
+        auto_mode = st.checkbox("自動実行モード（3秒間隔）")
+        if auto_mode and st.session_state.conversation_active:
+            # 自動実行用のプレースホルダー
+            placeholder = st.empty()
+            with placeholder.container():
+                st.info("🔄 自動実行中... 3秒後に次の発言を生成します")
+            
+            # 3秒待機してから次のステップを実行
+            time.sleep(3)
+            conversation_step()
         
         st.divider()
         
         # 会話履歴表示
         st.subheader("💬 会話履歴")
         
+        # デバッグ情報
+        st.caption(f"保存されているメッセージ数: {len(st.session_state.messages)}")
+        
         # メッセージ表示エリア
         message_container = st.container()
         
         with message_container:
-            for message in st.session_state.messages:
-                display_message(
-                    message['speaker'],
-                    message['content'],
-                    message['tokens'],
-                    message['cost']
-                )
+            if st.session_state.messages:
+                for i, message in enumerate(st.session_state.messages):
+                    display_message(
+                        message['speaker'],
+                        message['content'],
+                        message['tokens'],
+                        message['cost']
+                    )
+            else:
+                st.info("まだメッセージがありません。「次の発言を生成」をクリックしてください。")
         
         # 統計情報
         if st.session_state.messages:
