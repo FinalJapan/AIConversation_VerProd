@@ -365,14 +365,14 @@ def conversation_step():
         with st.spinner(f"🎤 {current_speaker} が考え中..."):
             response = st.session_state.llm_manager.generate_response(
                 current_speaker,
-                st.session_state.session_config.theme,
+                st.session_state.session_config.initial_theme,
                 st.session_state.session_config.max_response_length
             )
         
         # トークン数とコストを計算
         session_tokens, session_cost = st.session_state.cost_monitor.add_usage(
             current_speaker,
-            st.session_state.session_config.theme,
+            st.session_state.session_config.initial_theme,
             response
         )
         
