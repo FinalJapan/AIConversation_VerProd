@@ -275,7 +275,41 @@ def setup_sidebar():
 
 def start_conversation(token_limit: int, theme: str):
     """会話を開始"""
+    # 変数を事前に初期化（スコープ対策）
+    openai_key = None
+    anthropic_key = None
+    google_key = None
+    
     try:
+        # セッション状態からAPIキーを明示的に取得
+        openai_key = getattr(st.session_state, 'openai_api_key', None)
+        anthropic_key = getattr(st.session_state, 'anthropic_api_key', None)
+        google_key = getattr(st.session_state, 'google_api_key', None)
+        
+        # APIキーがない場合のエラーチェック
+        api_keys_available = 0
+        if openai_key:
+            api_keys_available += 1
+        if anthropic_key:
+            api_keys_available += 1
+        if google_key:
+            api_keys_available += 1
+        
+        if api_keys_available < 2:
+            st.error("⚠️ 最低2つのAPIキーを設定してください")
+            return
+        
+        # configにAPIキーを明示的に設定
+        if openai_key:
+            config.openai_api_key = openai_key
+        if anthropic_key:
+            config.anthropic_api_key = anthropic_key
+        if google_key:
+            config.google_api_key = google_key
+        
+        # 設定を確実に反映
+        config.load_api_keys()
+        
         # 設定初期化
         st.session_state.session_config = setup_config(token_limit, theme)
         st.session_state.cost_monitor = create_cost_monitor(token_limit)
@@ -285,6 +319,7 @@ def start_conversation(token_limit: int, theme: str):
         available_models = st.session_state.llm_manager.initialize_all()
         if len(available_models) < 2:
             st.error("⚠️ 会話には最低2つのLLMが必要です")
+            st.error("エラー詳細: APIキーが正しく設定されていない可能性があります")
             return
         
         # 初期メッセージ
@@ -294,10 +329,22 @@ def start_conversation(token_limit: int, theme: str):
         st.session_state.conversation_active = True
         
         st.success(f"🚀 会話を開始しました！テーマ: {theme}")
+        st.success(f"利用可能なAI: {', '.join(available_models)}")
         st.rerun()
         
     except Exception as e:
         st.error(f"❌ 初期化エラー: {e}")
+        import traceback
+        st.error(f"詳細: {traceback.format_exc()}")
+        
+        # デバッグ情報表示
+        st.error("🔍 デバッグ情報:")
+        st.error(f"OpenAI キー設定: {'✅' if openai_key else '❌'}")
+        st.error(f"Anthropic キー設定: {'✅' if anthropic_key else '❌'}")
+        st.error(f"Google キー設定: {'✅' if google_key else '❌'}")
+        st.error(f"Config OpenAI: {'✅' if config.openai_api_key else '❌'}")
+        st.error(f"Config Anthropic: {'✅' if config.anthropic_api_key else '❌'}")
+        st.error(f"Config Google: {'✅' if config.google_api_key else '❌'}")
 
 def stop_conversation():
     """会話を停止"""
