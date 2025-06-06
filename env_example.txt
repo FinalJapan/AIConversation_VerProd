@@ -1,0 +1,27 @@
+# AIマルチ会話システム - APIキー設定テンプレート
+# このファイルを参考に .env ファイルを作成してください
+
+# OpenAI API Key (ChatGPT用)
+# 取得方法: https://platform.openai.com/api-keys
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Anthropic API Key (Claude用)
+# 取得方法: https://console.anthropic.com/
+# 注意: 事前にクレジット購入が必要（最低$5）
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Google API Key (Gemini用)
+# 取得方法: https://makersuite.google.com/app/apikey
+# 注意: 無料枠があります
+GOOGLE_API_KEY=your_google_api_key_here
+
+# 設定手順:
+# 1. このファイルをコピーして .env ファイルを作成
+# 2. 上記のURLから各APIキーを取得
+# 3. your_xxx_api_key_here の部分を実際のAPIキーに置き換え
+# 4. 最低2つのAPIキーがあれば動作します
+
+# 料金について:
+# - ChatGPT: 20,000トークンで約$0.1-0.3
+# - Claude: 20,000トークンで約$0.15-0.75（要クレジット購入）
+# - Gemini: 無料枠内では料金なし 
