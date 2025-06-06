@@ -494,6 +494,8 @@ def main():
             else:
                 remaining = 2 - (current_time - st.session_state.last_message_time)
                 st.write(f"🔍 デバッグ: 待機中...あと{remaining:.1f}秒で次のメッセージ")
+                time.sleep(remaining)
+                st.rerun()
             
             if should_step:
                 st.write("🔍 デバッグ: conversation_step()を実行します")
