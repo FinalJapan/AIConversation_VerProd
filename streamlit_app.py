@@ -173,6 +173,10 @@ def initialize_session_state():
         st.session_state.cost_monitor = None
     if 'llm_manager' not in st.session_state:
         st.session_state.llm_manager = None
+    if 'auto_step' not in st.session_state:
+        st.session_state.auto_step = False
+    if 'last_message_time' not in st.session_state:
+        st.session_state.last_message_time = None
 
 def setup_sidebar():
     """サイドバーのセットアップ"""
@@ -349,6 +353,7 @@ def start_conversation(token_limit: int, theme: str):
         st.session_state.messages = []
         st.session_state.total_messages = 0
         st.session_state.conversation_active = True
+        st.session_state.last_message_time = None  # 初期化
         
         st.success(f"🚀 会話を開始しました！テーマ: {theme}")
         st.success(f"利用可能なAI: {', '.join(available_models)}")
@@ -370,6 +375,7 @@ def start_conversation(token_limit: int, theme: str):
 def stop_conversation():
     """会話を停止"""
     st.session_state.conversation_active = False
+    st.session_state.last_message_time = None
     st.success("🛑 会話を停止しました")
 
 def conversation_step(chat_placeholder):
@@ -406,6 +412,7 @@ def conversation_step(chat_placeholder):
             'timestamp': datetime.now()
         })
         st.session_state.total_messages += 1
+        st.session_state.last_message_time = time.time()  # 最後のメッセージ時刻を記録
         
         # チャットエリア全体を更新（全メッセージを再表示）
         with chat_placeholder.container():
@@ -446,7 +453,7 @@ def main():
         
         # リアルタイムチャット表示エリア
         st.subheader("💬 リアルタイム会話")
-        st.info("💡 AIたちがリアルタイムで会話します。「🗣️ 次の発言を生成」をクリックしてください。")
+        st.info("💡 AI同士が自動で会話しています。傍観してお楽しみください。")
         
         # チャットメッセージエリア
         chat_placeholder = st.empty()
@@ -463,7 +470,26 @@ def main():
                     )
         else:
             with chat_placeholder.container():
-                st.write("まだメッセージがありません。")
+                st.write("AI同士の会話が始まります...")
+        
+        # 自動会話進行 - 制限チェック後に次のステップを実行
+        if (st.session_state.conversation_active and 
+            not st.session_state.cost_monitor.is_limit_exceeded()):
+            
+            # タイムスタンプベースで自動進行（2秒間隔）
+            current_time = time.time()
+            should_step = False
+            
+            if st.session_state.last_message_time is None:
+                # 初回メッセージ
+                should_step = True
+            elif current_time - st.session_state.last_message_time >= 2:
+                # 前回のメッセージから2秒経過
+                should_step = True
+            
+            if should_step:
+                conversation_step(chat_placeholder)
+                st.rerun()  # ページを更新して次のステップへ
         
         # 制限・警告チェック
         if st.session_state.cost_monitor.is_limit_exceeded():
@@ -471,25 +497,6 @@ def main():
             st.session_state.conversation_active = False
         elif st.session_state.cost_monitor.is_warning_threshold():
             st.warning("⚠️ トークン使用量が90%を超えました！")
-        
-        st.divider()
-        
-        # 手動ステップ実行
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            if st.button("🗣️ 次の発言を生成", type="primary", use_container_width=True):
-                # リアルタイムで会話ステップを実行
-                conversation_step(chat_placeholder)
-        
-        with col2:
-            if st.button("🔄 連続生成", help="5回連続で発言を生成"):
-                for i in range(5):
-                    if st.session_state.conversation_active:
-                        conversation_step(chat_placeholder)
-                        time.sleep(0.5)  # 少し待機してから次へ
-                    else:
-                        break
         
         st.divider()
         
