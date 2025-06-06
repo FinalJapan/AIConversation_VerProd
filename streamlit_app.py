@@ -37,31 +37,41 @@ st.markdown("""
     border-radius: 10px;
     margin: 0.5rem 0;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    color: #000000 !important;  /* 黒文字を強制 */
 }
 
 /* ChatGPTスタイル（青系） */
 .chatgpt-message {
     background-color: #f7f9fc;
     border-left: 4px solid #4285f4;
+    color: #1a1a1a !important;  /* 濃い黒文字 */
 }
 
 /* Claudeスタイル（オレンジ系） */
 .claude-message {
     background-color: #fff8f0;
     border-left: 4px solid #ff8c00;
+    color: #1a1a1a !important;  /* 濃い黒文字 */
 }
 
 /* Geminiスタイル（緑系） */
 .gemini-message {
     background-color: #f0fff4;
     border-left: 4px solid #00c851;
+    color: #1a1a1a !important;  /* 濃い黒文字 */
 }
 
 /* システムメッセージ */
 .system-message {
     background-color: #f8f9fa;
     border-left: 4px solid #6c757d;
+    color: #1a1a1a !important;  /* 濃い黒文字 */
     font-style: italic;
+}
+
+/* メッセージ内のテキスト */
+.chat-message div {
+    color: #1a1a1a !important;  /* 濃い黒文字 */
 }
 
 /* アイコン */
@@ -82,6 +92,11 @@ st.markdown("""
 .progress-bar {
     margin: 1rem 0;
 }
+
+/* Streamlit要素の文字色を確実に黒にする */
+.stMarkdown, .stText {
+    color: #1a1a1a !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,19 +113,21 @@ def display_message(speaker: str, content: str, tokens: int, cost: float):
     """メッセージを表示"""
     style_class, icon = get_speaker_style(speaker)
     
-    # メッセージ表示
-    st.markdown(f"""
-    <div class="chat-message {style_class}">
-        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-            <span class="speaker-icon">{icon}</span>
-            <strong>{speaker}</strong>
-            <span style="margin-left: auto; font-size: 0.8em; color: #666;">
-                {tokens} tokens | ${cost:.4f}
-            </span>
+    # 確実に見える形式でメッセージを表示
+    with st.container():
+        # カスタムスタイルでの表示
+        st.markdown(f"""
+        <div class="chat-message {style_class}" style="color: #1a1a1a !important; margin: 1rem 0;">
+            <div style="display: flex; align-items: center; margin-bottom: 0.5rem; color: #1a1a1a !important;">
+                <span class="speaker-icon" style="font-size: 1.2em; margin-right: 0.5rem;">{icon}</span>
+                <strong style="color: #1a1a1a !important; font-size: 1.1em;">{speaker}</strong>
+                <span style="margin-left: auto; font-size: 0.8em; color: #666;">
+                    {tokens} tokens | ${cost:.4f}
+                </span>
+            </div>
+            <div style="color: #1a1a1a !important; line-height: 1.5; white-space: pre-wrap; padding: 0.5rem 0;">{content}</div>
         </div>
-        <div>{content}</div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
 def display_status(cost_monitor):
     """ステータス表示"""
@@ -376,7 +393,11 @@ def conversation_step():
             response
         )
         
-        # メッセージを追加
+        # 生成されたメッセージを即座に表示
+        st.success(f"✅ {current_speaker}が発言しました！")
+        display_message(current_speaker, response, session_tokens, session_cost)
+        
+        # メッセージをセッション状態に保存
         st.session_state.messages.append({
             'speaker': current_speaker,
             'content': response,
@@ -385,10 +406,6 @@ def conversation_step():
             'timestamp': datetime.now()
         })
         st.session_state.total_messages += 1
-        
-        # デバッグ情報を表示
-        st.success(f"✅ {current_speaker}の発言を追加しました（{len(response)}文字）")
-        st.success(f"💬 現在のメッセージ数: {len(st.session_state.messages)}")
         
         # 制限チェック
         if st.session_state.cost_monitor.is_limit_exceeded():
@@ -400,7 +417,7 @@ def conversation_step():
         if st.session_state.cost_monitor.is_warning_threshold():
             st.warning("⚠️ トークン使用量が90%を超えました！")
         
-        # UIを更新（重要！）
+        # UIを更新（セッション状態の変更を反映）
         st.rerun()
         
     except Exception as e:
@@ -426,47 +443,36 @@ def main():
             st.subheader("📊 ステータス")
             display_status(st.session_state.cost_monitor)
         
-        # 自動ステップ実行
-        if st.button("次の発言を生成", type="primary"):
-            conversation_step()
+        # 手動ステップ実行
+        col1, col2 = st.columns([3, 1])
         
-        # 自動実行モード
-        auto_mode = st.checkbox("自動実行モード（3秒間隔）")
-        if auto_mode and st.session_state.conversation_active:
-            # 自動実行用のプレースホルダー
-            placeholder = st.empty()
-            with placeholder.container():
-                st.info("🔄 自動実行中... 3秒後に次の発言を生成します")
-            
-            # 3秒待機してから次のステップを実行
-            time.sleep(3)
-            conversation_step()
+        with col1:
+            if st.button("🗣️ 次の発言を生成", type="primary", use_container_width=True):
+                conversation_step()
+        
+        with col2:
+            if st.button("🔄 連続生成", help="5回連続で発言を生成"):
+                for i in range(5):
+                    if st.session_state.conversation_active:
+                        with st.spinner(f"連続生成中... ({i+1}/5)"):
+                            conversation_step()
+                            time.sleep(1)  # 1秒待機
+                    else:
+                        break
         
         st.divider()
         
         # 会話履歴表示
         st.subheader("💬 会話履歴")
         
-        # デバッグ情報
-        st.caption(f"保存されているメッセージ数: {len(st.session_state.messages)}")
+        # リアルタイム表示の説明
+        st.info("💡 AI同士の会話は上記に即座に表示されます")
         
-        # メッセージ表示エリア
-        message_container = st.container()
-        
-        with message_container:
-            if st.session_state.messages:
-                for i, message in enumerate(st.session_state.messages):
-                    display_message(
-                        message['speaker'],
-                        message['content'],
-                        message['tokens'],
-                        message['cost']
-                    )
-            else:
-                st.info("まだメッセージがありません。「次の発言を生成」をクリックしてください。")
-        
-        # 統計情報
+        # 統計情報のみ表示
         if st.session_state.messages:
+            st.caption(f"💬 総メッセージ数: {len(st.session_state.messages)}")
+            
+            # 会話統計
             st.subheader("📈 会話統計")
             col1, col2, col3 = st.columns(3)
             
@@ -482,10 +488,11 @@ def main():
                 st.metric("最も活発なAI", f"{most_active[0]} ({most_active[1]}回)")
             
             with col3:
-                if st.session_state.messages:
-                    start_time = st.session_state.messages[0]['timestamp']
-                    duration = (datetime.now() - start_time).total_seconds() / 60
-                    st.metric("会話時間", f"{duration:.1f}分")
+                start_time = st.session_state.messages[0]['timestamp']
+                duration = (datetime.now() - start_time).total_seconds() / 60
+                st.metric("会話時間", f"{duration:.1f}分")
+        else:
+            st.caption("まだメッセージがありません。「🗣️ 次の発言を生成」をクリックしてください。")
     
     else:
         # 初期画面
