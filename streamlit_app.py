@@ -480,16 +480,30 @@ def main():
             current_time = time.time()
             should_step = False
             
+            # デバッグ情報表示
+            st.write(f"🔍 デバッグ: 現在時刻={current_time:.1f}, 最後のメッセージ時刻={st.session_state.last_message_time}")
+            
             if st.session_state.last_message_time is None:
                 # 初回メッセージ
                 should_step = True
+                st.write("🔍 デバッグ: 初回メッセージを生成します")
             elif current_time - st.session_state.last_message_time >= 2:
                 # 前回のメッセージから2秒経過
                 should_step = True
+                st.write(f"🔍 デバッグ: 2秒経過({current_time - st.session_state.last_message_time:.1f}秒)、次のメッセージを生成します")
+            else:
+                remaining = 2 - (current_time - st.session_state.last_message_time)
+                st.write(f"🔍 デバッグ: 待機中...あと{remaining:.1f}秒で次のメッセージ")
             
             if should_step:
+                st.write("🔍 デバッグ: conversation_step()を実行します")
                 conversation_step(chat_placeholder)
                 st.rerun()  # ページを更新して次のステップへ
+        else:
+            if not st.session_state.conversation_active:
+                st.write("🔍 デバッグ: 会話が停止中")
+            if st.session_state.cost_monitor.is_limit_exceeded():
+                st.write("🔍 デバッグ: トークン制限に達しました")
         
         # 制限・警告チェック
         if st.session_state.cost_monitor.is_limit_exceeded():
