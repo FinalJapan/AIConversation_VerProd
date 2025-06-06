@@ -415,60 +415,7 @@ def conversation_step(chat_placeholder):
         st.session_state.last_message_time = time.time()  # 最後のメッセージ時刻を記録
         
         # チャットエリア全体を更新（全メッセージを再表示）
-        with chat_placeholder.container():
-            for message in st.session_state.messages:
-                display_message(
-                    message['speaker'],
-                    message['content'],
-                    message['tokens'],
-                    message['cost']
-                )
-        
-        # 制限チェック
-        if st.session_state.cost_monitor.is_limit_exceeded():
-            st.session_state.conversation_active = False
-            return
-        
-    except Exception as e:
-        st.error(f"❌ エラーが発生しました: {e}")
-        return
-
-def main():
-    """メイン関数"""
-    st.title("🤖 AI同士の会話を観察")
-    st.markdown("**ChatGPT**、**Claude**、**Gemini**が自動で会話する様子を観察できます")
-    
-    # セッション状態初期化
-    initialize_session_state()
-    
-    # サイドバー設定
-    setup_sidebar()
-    
-    # メインコンテンツ
-    if st.session_state.conversation_active:
-        # ステータス表示
-        if st.session_state.cost_monitor:
-            st.subheader("📊 ステータス")
-            display_status(st.session_state.cost_monitor)
-        
-        # リアルタイムチャット表示エリア
-        st.subheader("💬 リアルタイム会話")
-        st.info("💡 AI同士が自動で会話しています。傍観してお楽しみください。")
-        
-        # チャットメッセージエリア
-        chat_placeholder = st.empty()
-        
-        # 既存のメッセージを表示
-        if st.session_state.messages:
-            with chat_placeholder.container():
-                for message in st.session_state.messages:
-                    display_message(
-                        message['speaker'],
-                        message['content'],
-                        message['tokens'],
-                        message['cost']
-                    )
-        else:
+       
             with chat_placeholder.container():
                 st.write("AI同士の会話が始まります...")
         
@@ -494,6 +441,8 @@ def main():
             else:
                 remaining = 2 - (current_time - st.session_state.last_message_time)
                 st.write(f"🔍 デバッグ: 待機中...あと{remaining:.1f}秒で次のメッセージ")
+                time.sleep(remaining)
+                st.rerun()
             
             if should_step:
                 st.write("🔍 デバッグ: conversation_step()を実行します")
