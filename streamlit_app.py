@@ -113,21 +113,26 @@ def display_message(speaker: str, content: str, tokens: int, cost: float):
     """メッセージを表示"""
     style_class, icon = get_speaker_style(speaker)
     
-    # 確実に見える形式でメッセージを表示
+    # Streamlitの標準コンポーネントで確実に表示
     with st.container():
-        # カスタムスタイルでの表示
-        st.markdown(f"""
-        <div class="chat-message {style_class}" style="color: #1a1a1a !important; margin: 1rem 0;">
-            <div style="display: flex; align-items: center; margin-bottom: 0.5rem; color: #1a1a1a !important;">
-                <span class="speaker-icon" style="font-size: 1.2em; margin-right: 0.5rem;">{icon}</span>
-                <strong style="color: #1a1a1a !important; font-size: 1.1em;">{speaker}</strong>
-                <span style="margin-left: auto; font-size: 0.8em; color: #666;">
-                    {tokens} tokens | ${cost:.4f}
-                </span>
-            </div>
-            <div style="color: #1a1a1a !important; line-height: 1.5; white-space: pre-wrap; padding: 0.5rem 0;">{content}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # ヘッダー部分
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f"### {icon} **{speaker}**")
+        with col2:
+            st.caption(f"{tokens} tokens | ${cost:.4f}")
+        
+        # メッセージ内容（背景色付き）
+        if speaker == "ChatGPT":
+            st.info(content)
+        elif speaker == "Claude":
+            st.warning(content)
+        elif speaker == "Gemini":
+            st.success(content)
+        else:
+            st.write(content)
+        
+        st.divider()
 
 def display_status(cost_monitor):
     """ステータス表示"""
@@ -347,8 +352,7 @@ def start_conversation(token_limit: int, theme: str):
         
         st.success(f"🚀 会話を開始しました！テーマ: {theme}")
         st.success(f"利用可能なAI: {', '.join(available_models)}")
-        st.rerun()
-        
+
     except Exception as e:
         st.error(f"❌ 初期化エラー: {e}")
         import traceback
@@ -367,9 +371,8 @@ def stop_conversation():
     """会話を停止"""
     st.session_state.conversation_active = False
     st.success("🛑 会話を停止しました")
-    st.rerun()
 
-def conversation_step():
+def conversation_step(chat_placeholder):
     """会話の1ステップを実行"""
     if not st.session_state.conversation_active:
         return
@@ -378,8 +381,9 @@ def conversation_step():
         # 次の発言者を選択
         current_speaker = st.session_state.llm_manager.select_next_speaker()
         
-        # 応答生成
+        # スピナーで思考中を表示
         with st.spinner(f"🎤 {current_speaker} が考え中..."):
+            # 応答生成
             response = st.session_state.llm_manager.generate_response(
                 current_speaker,
                 st.session_state.session_config.initial_theme,
@@ -393,10 +397,6 @@ def conversation_step():
             response
         )
         
-        # 生成されたメッセージを即座に表示
-        st.success(f"✅ {current_speaker}が発言しました！")
-        display_message(current_speaker, response, session_tokens, session_cost)
-        
         # メッセージをセッション状態に保存
         st.session_state.messages.append({
             'speaker': current_speaker,
@@ -407,23 +407,24 @@ def conversation_step():
         })
         st.session_state.total_messages += 1
         
+        # チャットエリア全体を更新（全メッセージを再表示）
+        with chat_placeholder.container():
+            for message in st.session_state.messages:
+                display_message(
+                    message['speaker'],
+                    message['content'],
+                    message['tokens'],
+                    message['cost']
+                )
+        
         # 制限チェック
         if st.session_state.cost_monitor.is_limit_exceeded():
-            st.error("🔴 トークン上限に達しました。会話を終了します。")
-            stop_conversation()
+            st.session_state.conversation_active = False
             return
-        
-        # 警告チェック
-        if st.session_state.cost_monitor.is_warning_threshold():
-            st.warning("⚠️ トークン使用量が90%を超えました！")
-        
-        # UIを更新（セッション状態の変更を反映）
-        st.rerun()
         
     except Exception as e:
         st.error(f"❌ エラーが発生しました: {e}")
-        st.info("会話を継続します...")
-        st.rerun()
+        return
 
 def main():
     """メイン関数"""
@@ -443,35 +444,57 @@ def main():
             st.subheader("📊 ステータス")
             display_status(st.session_state.cost_monitor)
         
+        # リアルタイムチャット表示エリア
+        st.subheader("💬 リアルタイム会話")
+        st.info("💡 AIたちがリアルタイムで会話します。「🗣️ 次の発言を生成」をクリックしてください。")
+        
+        # チャットメッセージエリア
+        chat_placeholder = st.empty()
+        
+        # 既存のメッセージを表示
+        if st.session_state.messages:
+            with chat_placeholder.container():
+                for message in st.session_state.messages:
+                    display_message(
+                        message['speaker'],
+                        message['content'],
+                        message['tokens'],
+                        message['cost']
+                    )
+        else:
+            with chat_placeholder.container():
+                st.write("まだメッセージがありません。")
+        
+        # 制限・警告チェック
+        if st.session_state.cost_monitor.is_limit_exceeded():
+            st.error("🔴 トークン上限に達しました。会話を終了します。")
+            st.session_state.conversation_active = False
+        elif st.session_state.cost_monitor.is_warning_threshold():
+            st.warning("⚠️ トークン使用量が90%を超えました！")
+        
+        st.divider()
+        
         # 手動ステップ実行
         col1, col2 = st.columns([3, 1])
         
         with col1:
             if st.button("🗣️ 次の発言を生成", type="primary", use_container_width=True):
-                conversation_step()
+                # リアルタイムで会話ステップを実行
+                conversation_step(chat_placeholder)
         
         with col2:
             if st.button("🔄 連続生成", help="5回連続で発言を生成"):
                 for i in range(5):
                     if st.session_state.conversation_active:
-                        with st.spinner(f"連続生成中... ({i+1}/5)"):
-                            conversation_step()
-                            time.sleep(1)  # 1秒待機
+                        conversation_step(chat_placeholder)
+                        time.sleep(0.5)  # 少し待機してから次へ
                     else:
                         break
         
         st.divider()
         
-        # 会話履歴表示
-        st.subheader("💬 会話履歴")
-        
-        # リアルタイム表示の説明
-        st.info("💡 AI同士の会話は上記に即座に表示されます")
-        
-        # 統計情報のみ表示
+        # 統計情報表示
         if st.session_state.messages:
-            st.caption(f"💬 総メッセージ数: {len(st.session_state.messages)}")
-            
             # 会話統計
             st.subheader("📈 会話統計")
             col1, col2, col3 = st.columns(3)
@@ -491,8 +514,6 @@ def main():
                 start_time = st.session_state.messages[0]['timestamp']
                 duration = (datetime.now() - start_time).total_seconds() / 60
                 st.metric("会話時間", f"{duration:.1f}分")
-        else:
-            st.caption("まだメッセージがありません。「🗣️ 次の発言を生成」をクリックしてください。")
     
     else:
         # 初期画面
@@ -501,7 +522,7 @@ def main():
         # 使い方説明
         st.subheader("📖 使い方")
         st.markdown("""
-        1. **APIキー設定**: `.env`ファイルに各AIのAPIキーを設定
+        1. **APIキー設定**: サイドバーで各AIのAPIキーを設定
         2. **トークン制限**: 使用量の上限を設定（費用制御）
         3. **テーマ選択**: AIたちが話し合うトピックを選択
         4. **会話開始**: 設定完了後、「🚀 会話開始」をクリック
@@ -517,4 +538,4 @@ def main():
         """)
 
 if __name__ == "__main__":
-    main() 
+    main()
