@@ -515,7 +515,7 @@ def setup_sidebar():
         # テーマ設定
         st.subheader("🎯 会話テーマ")
         theme_presets = [
-            "一般的な話題について自由に議論",
+            "恋愛について議論",
             "哲学について議論",
             "SFについて語り合う",
             "料理のレシピ開発",
@@ -525,7 +525,7 @@ def setup_sidebar():
         selected_theme = st.selectbox("テーマを選択", theme_presets, key="theme_presets_select")
         
         # カスタムテーマ
-        if st.checkbox("カスタムテーマ", key="custom_theme_checkbox"):
+        if st.checkbox("テーマを設定", key="custom_theme_checkbox"):
             selected_theme = st.text_input("カスタムテーマを入力", value=selected_theme, key="custom_theme_input")
         
         st.divider()
@@ -774,7 +774,7 @@ def main():
     setup_sidebar()
     
     # メインタイトル
-    st.title("🤖 AI同士の会話を観察")
+    
     st.markdown("異なるAIが自動で会話を続けます。リアルタイムで観察してみましょう！")
     
     # 一時停止中の表示
