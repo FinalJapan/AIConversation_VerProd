@@ -711,107 +711,63 @@ def display_conversation_summary():
         return
     
     summary = st.session_state.cost_monitor.get_status_summary()
-    
-    st.markdown("---")
-    st.subheader("📊 会話終了サマリー")
-    
-    # 全体統計
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            label="📝 総メッセージ数",
-            value=f"{st.session_state.total_messages}件"
-        )
-    
-    with col2:
-        st.metric(
-            label="🔢 総トークン数",
-            value=f"{summary['total_tokens']:,}",
-            delta=f"制限: {st.session_state.cost_monitor.token_limit:,}"
-        )
-    
-    with col3:
-        st.metric(
-            label="💰 総コスト",
-            value=f"${summary['total_cost_usd']:.4f}"
-        )
-    
-    with col4:
-        usage_percentage = summary['usage_percentage']
-        st.metric(
-            label="📊 使用率",
-            value=f"{usage_percentage:.1f}%",
-            delta="警告" if usage_percentage >= 90 else "正常",
-            delta_color="inverse" if usage_percentage >= 90 else "normal"
-        )
-    
-    st.markdown("---")
-    
-    # AI別詳細統計
-    st.subheader("🤖 AI別統計")
-    
     usage_by_model = summary['usage_by_model']
     
-    # テーブル形式で表示
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("#### 🤖 ChatGPT")
-        chatgpt_stats = usage_by_model.get('ChatGPT', {})
-        if chatgpt_stats.get('total_tokens', 0) > 0:
-            st.metric("トークン数", f"{chatgpt_stats['total_tokens']:,}")
-            st.metric("入力", f"{chatgpt_stats['input_tokens']:,}")
-            st.metric("出力", f"{chatgpt_stats['output_tokens']:,}")
-            st.metric("コスト", f"${chatgpt_stats['cost_usd']:.4f}")
-        else:
-            st.info("使用されませんでした")
-    
-    with col2:
-        st.markdown("#### 🧠 Claude")
-        claude_stats = usage_by_model.get('Claude', {})
-        if claude_stats.get('total_tokens', 0) > 0:
-            st.metric("トークン数", f"{claude_stats['total_tokens']:,}")
-            st.metric("入力", f"{claude_stats['input_tokens']:,}")
-            st.metric("出力", f"{claude_stats['output_tokens']:,}")
-            st.metric("コスト", f"${claude_stats['cost_usd']:.4f}")
-        else:
-            st.info("使用されませんでした")
-    
-    with col3:
-        st.markdown("#### ⭐ Gemini")
-        gemini_stats = usage_by_model.get('Gemini', {})
-        if gemini_stats.get('total_tokens', 0) > 0:
-            st.metric("トークン数", f"{gemini_stats['total_tokens']:,}")
-            st.metric("入力", f"{gemini_stats['input_tokens']:,}")
-            st.metric("出力", f"{gemini_stats['output_tokens']:,}")
-            st.metric("コスト", f"${gemini_stats['cost_usd']:.4f}")
-        else:
-            st.info("使用されませんでした")
-    
-    # 円グラフでトークン使用量を可視化
     st.markdown("---")
     st.subheader("📈 トークン使用量の分布")
     
     # データの準備
-    chart_data = []
-    colors = ["#10A37F", "#F56500", "#4285F4"]  # ChatGPT, Claude, Gemini
     labels = []
     values = []
     
-    for i, (model, stats) in enumerate([("ChatGPT", chatgpt_stats), ("Claude", claude_stats), ("Gemini", gemini_stats)]):
+    for model in ["ChatGPT", "Claude", "Gemini"]:
+        stats = usage_by_model.get(model, {})
         if stats.get('total_tokens', 0) > 0:
             labels.append(model)
             values.append(stats['total_tokens'])
     
     if values:
-        # Streamlitのチャート機能で簡単な棒グラフを表示
+        # チャットの色に合わせたカスタムカラーの棒グラフを表示
         import pandas as pd
+        import plotly.express as px
+        
+        # AI別の色定義（チャットメッセージと同じ色）
+        color_map = {
+            "ChatGPT": "#10A37F",  # 緑系
+            "Claude": "#F56500",   # オレンジ系
+            "Gemini": "#4285F4"    # 青系
+        }
+        
         chart_df = pd.DataFrame({
             'AI': labels,
             'トークン数': values
         })
-        st.bar_chart(chart_df.set_index('AI'))
+        
+        # 各AIに対応する色を取得
+        colors = [color_map.get(ai, "#666666") for ai in labels]
+        
+        # Plotlyで色付き棒グラフを作成
+        fig = px.bar(
+            chart_df, 
+            x='AI', 
+            y='トークン数',
+            color='AI',
+            color_discrete_map=color_map,
+            title="AI別トークン使用量"
+        )
+        
+        # グラフのスタイル調整
+        fig.update_layout(
+            showlegend=False,  # 凡例を非表示
+            height=400,
+            xaxis_title="AI",
+            yaxis_title="トークン数",
+            plot_bgcolor='rgba(0,0,0,0)',  # 背景透明
+            paper_bgcolor='rgba(0,0,0,0)'  # 背景透明
+        )
+        
+        # グラフを表示
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("表示するデータがありません")
     
