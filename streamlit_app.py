@@ -447,6 +447,8 @@ def initialize_session_state():
         st.session_state.is_thinking = False
     if 'thinking_speaker' not in st.session_state:
         st.session_state.thinking_speaker = None
+    if 'show_summary' not in st.session_state:
+        st.session_state.show_summary = False
 
 def setup_sidebar():
     """サイドバーのセットアップ"""
@@ -504,7 +506,7 @@ def setup_sidebar():
         
         # トークン制限設定
         st.subheader("📊 トークン制限")
-        token_options = {"20,000 tokens (推奨)": 20000, "50,000 tokens": 50000}
+        token_options = {"12,000 tokens (推奨)": 12000, "50,000 tokens": 50000}
         selected_option = st.selectbox("制限を選択", list(token_options.keys()), key="token_limit_select")
         token_limit = token_options[selected_option]
         
@@ -624,6 +626,9 @@ def start_conversation(token_limit: int, theme: str):
     google_key = None
     
     try:
+        # 統計サマリーを非表示にする
+        st.session_state.show_summary = False
+        
         # セッション状態からAPIキーを明示的に取得
         openai_key = getattr(st.session_state, 'openai_api_key', None)
         anthropic_key = getattr(st.session_state, 'anthropic_api_key', None)
@@ -694,9 +699,9 @@ def stop_conversation():
     st.session_state.conversation_active = False
     st.session_state.last_message_time = None
     
-    # 会話終了時の統計情報を表示
+    # 会話終了時の統計情報をセッション状態に保存（メインエリアで表示）
     if st.session_state.cost_monitor:
-        display_conversation_summary()
+        st.session_state.show_summary = True
     
     st.success("🛑 会話を停止しました")
 
@@ -814,22 +819,6 @@ def display_conversation_summary():
     with st.expander("📋 詳細ログ"):
         st.code(st.session_state.cost_monitor.format_status_display())
     
-    # 次回への提案
-    st.markdown("---")
-    st.subheader("💡 次回への提案")
-    
-    if usage_percentage < 50:
-        st.success("✨ トークン制限に余裕がありました。もう少し長い会話を楽しめそうです！")
-    elif usage_percentage < 90:
-        st.info("👍 適度なトークン使用量でした。バランスの良い会話ができました。")
-    else:
-        st.warning("⚠️ トークン制限に近づきました。次回はより大きな制限設定を検討してください。")
-    
-    # コスト効率の分析
-    if summary['total_cost_usd'] > 0:
-        cost_per_message = summary['total_cost_usd'] / max(st.session_state.total_messages, 1)
-        st.info(f"💰 1メッセージあたりのコスト: ${cost_per_message:.4f}")
-    
     st.markdown("---")
 
 def should_stop_conversation() -> bool:
@@ -841,9 +830,9 @@ def should_stop_conversation() -> bool:
     if st.session_state.cost_monitor and st.session_state.cost_monitor.is_limit_exceeded():
         st.error("🔴 トークン上限に達しました。会話を終了します。")
         
-        # 自動停止でも統計情報を表示
+        # 自動停止でも統計情報表示フラグを設定
         if st.session_state.cost_monitor:
-            display_conversation_summary()
+            st.session_state.show_summary = True
         
         return True
     
@@ -919,6 +908,14 @@ def main():
     st.title(" AIConversation")
     st.markdown("異なるAIが自動で会話を続けます。リアルタイムで観察してみましょう！")
     
+    # 統計サマリーの表示（メインエリア）
+    if st.session_state.show_summary:
+        display_conversation_summary()
+        # 「新しい会話を開始」ボタンを表示
+        if st.button("🔄 新しい会話を開始", type="primary", use_container_width=True):
+            st.session_state.show_summary = False
+            st.rerun()
+    
     # 一時停止中の表示
     if st.session_state.conversation_paused:
         st.warning("⏸️ 会話が一時停止中です。サイドバーの「▶️ 再開」ボタンで続行できます。")
@@ -992,26 +989,27 @@ def main():
         st.markdown(scroll_script, unsafe_allow_html=True)
     
     else:
-        # 初期画面
-        st.info("👈 左側のサイドバーで設定を行い、「🚀 会話開始」をクリックしてください")
-        
-        # 使い方説明（簡略版）
-        st.subheader("📖 使い方")
-        st.markdown("""
-        1. **APIキー設定**: サイドバーで各AIのAPIキーを設定
-        2. **トークン制限**: 使用量の上限を設定（費用制御）
-        3. **テーマ選択**: AIたちが話し合うトピックを選択
-        4. **会話開始**: 設定完了後、「🚀 会話開始」をクリック
-        5. **制御**: 必要に応じて一時停止・再開・停止
-        """)
-        
-        # 注意事項
-        st.warning("""
-        ⚠️ **注意事項**
-        - API使用料金が発生します
-        - 最低2つのAPIキーが必要です
-        - トークン制限を設定して費用をコントロールしてください
-        """)
+        # 初期画面（統計サマリーが表示されていない場合のみ）
+        if not st.session_state.show_summary:
+            st.info("👈 左側のサイドバーで設定を行い、「🚀 会話開始」をクリックしてください")
+            
+            # 使い方説明（簡略版）
+            st.subheader("📖 使い方")
+            st.markdown("""
+            1. **APIキー設定**: サイドバーで各AIのAPIキーを設定
+            2. **トークン制限**: 使用量の上限を設定（費用制御）
+            3. **テーマ選択**: AIたちが話し合うトピックを選択
+            4. **会話開始**: 設定完了後、「🚀 会話開始」をクリック
+            5. **制御**: 必要に応じて一時停止・再開・停止
+            """)
+            
+            # 注意事項
+            st.warning("""
+            ⚠️ **注意事項**
+            - API使用料金が発生します
+            - 最低2つのAPIキーが必要です
+            - トークン制限を設定して費用をコントロールしてください
+            """)
     
     # 自動停止チェック
     if st.session_state.conversation_active and should_stop_conversation():
