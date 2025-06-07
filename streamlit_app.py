@@ -774,7 +774,7 @@ def main():
     setup_sidebar()
     
     # メインタイトル
-    
+    st.title(" AIConversation")
     st.markdown("異なるAIが自動で会話を続けます。リアルタイムで観察してみましょう！")
     
     # 一時停止中の表示
