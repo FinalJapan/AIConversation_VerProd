@@ -830,7 +830,7 @@ def main():
                     else:
                         st.info("🔄 AIたちが会話中...")
                 with col2:
-                    st.metric("メッセージ数", st.session_state.total_messages)
+                    st.metric("現在のトークン", st.session_state.total_messages)
                 with col3:
                     if st.session_state.cost_monitor:
                         total_cost = sum(msg['cost'] for msg in st.session_state.messages)
