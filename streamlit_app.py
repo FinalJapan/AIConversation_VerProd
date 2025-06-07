@@ -693,7 +693,144 @@ def stop_conversation():
     """会話を停止"""
     st.session_state.conversation_active = False
     st.session_state.last_message_time = None
+    
+    # 会話終了時の統計情報を表示
+    if st.session_state.cost_monitor:
+        display_conversation_summary()
+    
     st.success("🛑 会話を停止しました")
+
+def display_conversation_summary():
+    """会話終了時の統計サマリーを表示"""
+    if not st.session_state.cost_monitor:
+        return
+    
+    summary = st.session_state.cost_monitor.get_status_summary()
+    
+    st.markdown("---")
+    st.subheader("📊 会話終了サマリー")
+    
+    # 全体統計
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="📝 総メッセージ数",
+            value=f"{st.session_state.total_messages}件"
+        )
+    
+    with col2:
+        st.metric(
+            label="🔢 総トークン数",
+            value=f"{summary['total_tokens']:,}",
+            delta=f"制限: {st.session_state.cost_monitor.token_limit:,}"
+        )
+    
+    with col3:
+        st.metric(
+            label="💰 総コスト",
+            value=f"${summary['total_cost_usd']:.4f}"
+        )
+    
+    with col4:
+        usage_percentage = summary['usage_percentage']
+        st.metric(
+            label="📊 使用率",
+            value=f"{usage_percentage:.1f}%",
+            delta="警告" if usage_percentage >= 90 else "正常",
+            delta_color="inverse" if usage_percentage >= 90 else "normal"
+        )
+    
+    st.markdown("---")
+    
+    # AI別詳細統計
+    st.subheader("🤖 AI別統計")
+    
+    usage_by_model = summary['usage_by_model']
+    
+    # テーブル形式で表示
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("#### 🤖 ChatGPT")
+        chatgpt_stats = usage_by_model.get('ChatGPT', {})
+        if chatgpt_stats.get('total_tokens', 0) > 0:
+            st.metric("トークン数", f"{chatgpt_stats['total_tokens']:,}")
+            st.metric("入力", f"{chatgpt_stats['input_tokens']:,}")
+            st.metric("出力", f"{chatgpt_stats['output_tokens']:,}")
+            st.metric("コスト", f"${chatgpt_stats['cost_usd']:.4f}")
+        else:
+            st.info("使用されませんでした")
+    
+    with col2:
+        st.markdown("#### 🧠 Claude")
+        claude_stats = usage_by_model.get('Claude', {})
+        if claude_stats.get('total_tokens', 0) > 0:
+            st.metric("トークン数", f"{claude_stats['total_tokens']:,}")
+            st.metric("入力", f"{claude_stats['input_tokens']:,}")
+            st.metric("出力", f"{claude_stats['output_tokens']:,}")
+            st.metric("コスト", f"${claude_stats['cost_usd']:.4f}")
+        else:
+            st.info("使用されませんでした")
+    
+    with col3:
+        st.markdown("#### ⭐ Gemini")
+        gemini_stats = usage_by_model.get('Gemini', {})
+        if gemini_stats.get('total_tokens', 0) > 0:
+            st.metric("トークン数", f"{gemini_stats['total_tokens']:,}")
+            st.metric("入力", f"{gemini_stats['input_tokens']:,}")
+            st.metric("出力", f"{gemini_stats['output_tokens']:,}")
+            st.metric("コスト", f"${gemini_stats['cost_usd']:.4f}")
+        else:
+            st.info("使用されませんでした")
+    
+    # 円グラフでトークン使用量を可視化
+    st.markdown("---")
+    st.subheader("📈 トークン使用量の分布")
+    
+    # データの準備
+    chart_data = []
+    colors = ["#10A37F", "#F56500", "#4285F4"]  # ChatGPT, Claude, Gemini
+    labels = []
+    values = []
+    
+    for i, (model, stats) in enumerate([("ChatGPT", chatgpt_stats), ("Claude", claude_stats), ("Gemini", gemini_stats)]):
+        if stats.get('total_tokens', 0) > 0:
+            labels.append(model)
+            values.append(stats['total_tokens'])
+    
+    if values:
+        # Streamlitのチャート機能で簡単な棒グラフを表示
+        import pandas as pd
+        chart_df = pd.DataFrame({
+            'AI': labels,
+            'トークン数': values
+        })
+        st.bar_chart(chart_df.set_index('AI'))
+    else:
+        st.info("表示するデータがありません")
+    
+    # 詳細ログ（折りたたみ式）
+    with st.expander("📋 詳細ログ"):
+        st.code(st.session_state.cost_monitor.format_status_display())
+    
+    # 次回への提案
+    st.markdown("---")
+    st.subheader("💡 次回への提案")
+    
+    if usage_percentage < 50:
+        st.success("✨ トークン制限に余裕がありました。もう少し長い会話を楽しめそうです！")
+    elif usage_percentage < 90:
+        st.info("👍 適度なトークン使用量でした。バランスの良い会話ができました。")
+    else:
+        st.warning("⚠️ トークン制限に近づきました。次回はより大きな制限設定を検討してください。")
+    
+    # コスト効率の分析
+    if summary['total_cost_usd'] > 0:
+        cost_per_message = summary['total_cost_usd'] / max(st.session_state.total_messages, 1)
+        st.info(f"💰 1メッセージあたりのコスト: ${cost_per_message:.4f}")
+    
+    st.markdown("---")
 
 def should_stop_conversation() -> bool:
     """会話を自動停止すべきかどうかを判定"""
@@ -703,6 +840,11 @@ def should_stop_conversation() -> bool:
     # トークン制限チェック
     if st.session_state.cost_monitor and st.session_state.cost_monitor.is_limit_exceeded():
         st.error("🔴 トークン上限に達しました。会話を終了します。")
+        
+        # 自動停止でも統計情報を表示
+        if st.session_state.cost_monitor:
+            display_conversation_summary()
+        
         return True
     
     return False
