@@ -526,7 +526,7 @@ def setup_sidebar():
         
         # カスタムテーマ
         if st.checkbox("自分で議題を設定", key="custom_theme_checkbox"):
-            selected_theme = st.text_input("議題を入力", value="", placeholder="議題を入力", key="custom_theme_input")
+            selected_theme = st.text_input("議題", value="", placeholder="議題を入力", key="custom_theme_input")
         
         st.divider()
         
