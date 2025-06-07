@@ -823,18 +823,20 @@ def main():
         # 会話中の状態表示
         if st.session_state.conversation_active and not st.session_state.conversation_paused:
             with st.container():
-                col1, col2, col3 = st.columns([2, 1, 1])
+                col1, col2 = st.columns([2, 1])
                 with col1:
                     if st.session_state.is_thinking:
                         st.success(f"🎤 {st.session_state.thinking_speaker} が考え中...")
                     else:
                         st.info("🔄 AIたちが会話中...")
                 with col2:
-                    st.metric("現在のトークン", st.session_state.total_messages)
-                with col3:
                     if st.session_state.cost_monitor:
-                        total_cost = sum(msg['cost'] for msg in st.session_state.messages)
-                        st.metric("総コスト", f"${total_cost:.4f}")
+                        # 現在のトークン数と上限を取得
+                        current_tokens = st.session_state.cost_monitor.get_status_summary()['total_tokens']
+                        token_limit = st.session_state.cost_monitor.token_limit
+                        st.metric("現在のトークン", f"{current_tokens:,}/{token_limit:,}")
+                    else:
+                        st.metric("現在のトークン", "0/0")
         
         # 自動スクロール用のJavaScript
         scroll_script = """
