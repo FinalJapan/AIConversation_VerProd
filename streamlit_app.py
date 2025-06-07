@@ -71,45 +71,47 @@ st.markdown("""
     color: var(--text-color) !important;
     background-color: var(--secondary-background-color);
     border: 1px solid rgba(255,255,255,0.1);
+    animation: slideIn 0.4s ease-out;
+    transition: all 0.2s ease;
 }
 
-/* ChatGPTスタイル（青系） */
+/* ChatGPTスタイル（OpenAI - 控えめな緑系） */
 .chatgpt-message {
-    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
-    background-size: 200% 200%;
-    border-left: 4px solid #4285f4;
-    color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+    background: linear-gradient(135deg, #e8f5e8 0%, #f0f9f0 100%);
+    border-left: 4px solid #10A37F;
+    color: #2d4a3d !important;
+    box-shadow: 0 2px 8px rgba(16, 163, 127, 0.1);
+    border: 1px solid rgba(16, 163, 127, 0.2);
 }
 
 .chatgpt-message * {
-    color: #ffffff !important;
+    color: #2d4a3d !important;
 }
 
-/* Claudeスタイル（オレンジ系） */
+/* Claudeスタイル（Anthropic - 控えめなオレンジ系） */
 .claude-message {
-    background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
-    background-size: 200% 200%;
-    border-left: 4px solid #ff8c00;
-    color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(255, 140, 0, 0.3);
+    background: linear-gradient(135deg, #fef4e8 0%, #fff8f0 100%);
+    border-left: 4px solid #F56500;
+    color: #5a3e2a !important;
+    box-shadow: 0 2px 8px rgba(245, 101, 0, 0.1);
+    border: 1px solid rgba(245, 101, 0, 0.2);
 }
 
 .claude-message * {
-    color: #ffffff !important;
+    color: #5a3e2a !important;
 }
 
-/* Geminiスタイル（緑〜紫のグラデーション） */
+/* Geminiスタイル（Google - 控えめな青紫系） */
 .gemini-message {
-    background: linear-gradient(135deg, #00c851 0%, #9c27b0 100%);
-    background-size: 200% 200%;
-    border-left: 4px solid #00c851;
-    color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(0, 200, 81, 0.3);
+    background: linear-gradient(135deg, #f0f4ff 0%, #f8faff 100%);
+    border-left: 4px solid #4285F4;
+    color: #2d3a4f !important;
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.1);
+    border: 1px solid rgba(66, 133, 244, 0.2);
 }
 
 .gemini-message * {
-    color: #ffffff !important;
+    color: #2d3a4f !important;
 }
 
 /* システムメッセージ */
@@ -199,35 +201,35 @@ st.markdown("""
 @keyframes slideIn {
     from {
         opacity: 0;
-        transform: translateX(-20px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 
 .chat-message {
-    animation: slideIn 0.3s ease-out;
+    animation: slideIn 0.4s ease-out;
+    transition: all 0.2s ease;
 }
 
-/* 高度なグラデーション効果 */
-.chatgpt-message {
-    animation: gradientShift 3s ease infinite;
+/* ホバー効果（控えめ） */
+.chat-message:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.claude-message {
-    animation: gradientShift 3s ease infinite;
+.chatgpt-message:hover {
+    box-shadow: 0 4px 12px rgba(16, 163, 127, 0.15);
 }
 
-.gemini-message {
-    animation: gradientShift 3s ease infinite;
+.claude-message:hover {
+    box-shadow: 0 4px 12px rgba(245, 101, 0, 0.15);
 }
 
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+.gemini-message:hover {
+    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.15);
 }
 
 /* パルスアニメーション（思考中表示用） */
@@ -237,8 +239,8 @@ st.markdown("""
         transform: scale(1);
     }
     50% { 
-        opacity: 0.5;
-        transform: scale(1.1);
+        opacity: 0.7;
+        transform: scale(1.05);
     }
     100% { 
         opacity: 1;
@@ -271,12 +273,79 @@ st.markdown("""
 /* ダークテーマでのコントラスト強化 */
 @media (prefers-color-scheme: dark) {
     .chat-message {
-        box-shadow: 0 2px 10px rgba(255,255,255,0.1);
+        box-shadow: 0 2px 10px rgba(255,255,255,0.05);
     }
     
     .stButton > button {
         border: 1px solid rgba(255,255,255,0.2);
     }
+    
+    /* ダークテーマでのChatGPTメッセージ */
+    .chatgpt-message {
+        background: linear-gradient(135deg, #1a2f1a 0%, #2a3f2a 100%);
+        border-left: 4px solid #10A37F;
+        color: #b8e6c1 !important;
+        border: 1px solid rgba(16, 163, 127, 0.3);
+    }
+    
+    .chatgpt-message * {
+        color: #b8e6c1 !important;
+    }
+    
+    /* ダークテーマでのClaudeメッセージ */
+    .claude-message {
+        background: linear-gradient(135deg, #2f1f0f 0%, #3f2f1f 100%);
+        border-left: 4px solid #F56500;
+        color: #f5c99b !important;
+        border: 1px solid rgba(245, 101, 0, 0.3);
+    }
+    
+    .claude-message * {
+        color: #f5c99b !important;
+    }
+    
+    /* ダークテーマでのGeminiメッセージ */
+    .gemini-message {
+        background: linear-gradient(135deg, #1a1f2f 0%, #2a2f3f 100%);
+        border-left: 4px solid #4285F4;
+        color: #b8c5f5 !important;
+        border: 1px solid rgba(66, 133, 244, 0.3);
+    }
+    
+    .gemini-message * {
+        color: #b8c5f5 !important;
+    }
+}
+
+/* Streamlitのダークテーマクラス対応 */
+.stApp[data-theme="dark"] .chatgpt-message {
+    background: linear-gradient(135deg, #1a2f1a 0%, #2a3f2a 100%) !important;
+    color: #b8e6c1 !important;
+    border: 1px solid rgba(16, 163, 127, 0.3);
+}
+
+.stApp[data-theme="dark"] .chatgpt-message * {
+    color: #b8e6c1 !important;
+}
+
+.stApp[data-theme="dark"] .claude-message {
+    background: linear-gradient(135deg, #2f1f0f 0%, #3f2f1f 100%) !important;
+    color: #f5c99b !important;
+    border: 1px solid rgba(245, 101, 0, 0.3);
+}
+
+.stApp[data-theme="dark"] .claude-message * {
+    color: #f5c99b !important;
+}
+
+.stApp[data-theme="dark"] .gemini-message {
+    background: linear-gradient(135deg, #1a1f2f 0%, #2a2f3f 100%) !important;
+    color: #b8c5f5 !important;
+    border: 1px solid rgba(66, 133, 244, 0.3);
+}
+
+.stApp[data-theme="dark"] .gemini-message * {
+    color: #b8c5f5 !important;
 }
 
 /* 印刷対応 */
