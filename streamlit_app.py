@@ -230,6 +230,32 @@ st.markdown("""
     100% { background-position: 0% 50%; }
 }
 
+/* パルスアニメーション（思考中表示用） */
+@keyframes pulse {
+    0% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.5;
+        transform: scale(1.1);
+    }
+    100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 思考中メッセージの点滅効果 */
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+
+.thinking-message {
+    animation: blink 2s ease-in-out infinite;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     .chat-message {
@@ -348,6 +374,10 @@ def initialize_session_state():
         st.session_state.last_message_time = None
     if 'conversation_paused' not in st.session_state:
         st.session_state.conversation_paused = False
+    if 'is_thinking' not in st.session_state:
+        st.session_state.is_thinking = False
+    if 'thinking_speaker' not in st.session_state:
+        st.session_state.thinking_speaker = None
 
 def setup_sidebar():
     """サイドバーのセットアップ"""
@@ -609,7 +639,7 @@ def should_stop_conversation() -> bool:
     return False
 
 def conversation_step():
-    """会話の1ステップを実行（簡易版）"""
+    """会話の1ステップを実行（リアルタイム版）"""
     if not st.session_state.conversation_active or st.session_state.conversation_paused:
         return
     
@@ -622,14 +652,20 @@ def conversation_step():
         # 次の発言者を選択
         current_speaker = st.session_state.llm_manager.select_next_speaker()
         
-        # スピナーで思考中を表示
-        with st.spinner(f"🎤 {current_speaker} が考え中..."):
-            # 応答生成
-            response = st.session_state.llm_manager.generate_response(
-                current_speaker,
-                st.session_state.session_config.initial_theme,
-                st.session_state.session_config.max_response_length
-            )
+        # 思考中状態をセッション状態に保存
+        st.session_state.thinking_speaker = current_speaker
+        st.session_state.is_thinking = True
+        
+        # 応答生成
+        response = st.session_state.llm_manager.generate_response(
+            current_speaker,
+            st.session_state.session_config.initial_theme,
+            st.session_state.session_config.max_response_length
+        )
+        
+        # 思考中状態をクリア
+        st.session_state.is_thinking = False
+        st.session_state.thinking_speaker = None
         
         # トークン数とコストを計算
         session_tokens, session_cost = st.session_state.cost_monitor.add_usage(
@@ -654,6 +690,9 @@ def conversation_step():
             st.warning("⚠️ トークン使用量が90%を超えました！")
         
     except Exception as e:
+        # エラー時も思考中状態をクリア
+        st.session_state.is_thinking = False
+        st.session_state.thinking_speaker = None
         st.error(f"❌ 会話エラー: {e}")
         # エラーが発生してもすぐには停止しない
 
@@ -669,53 +708,75 @@ def main():
     st.title("🤖 AI同士の会話を観察")
     st.markdown("異なるAIが自動で会話を続けます。リアルタイムで観察してみましょう！")
     
-    # 3秒間隔の自動進行（会話中のみ）
-    if (st.session_state.conversation_active and 
-        not st.session_state.conversation_paused):
-        
-        current_time = time.time()
-        should_step = False
-        
-        if st.session_state.last_message_time is None:
-            should_step = True
-        elif current_time - st.session_state.last_message_time >= 3:  # 3秒間隔固定
-            should_step = True
-        
-        if should_step and not should_stop_conversation():
-            conversation_step()
-            st.rerun()
-        elif not should_stop_conversation():
-            # 次のステップまでの待機時間表示
-            remaining = 3 - (current_time - st.session_state.last_message_time)
-            if remaining > 0:
-                st.info(f"⏳ 次のメッセージまで {remaining:.1f}秒...")
-                time.sleep(1)
-                st.rerun()
-    
     # 一時停止中の表示
     if st.session_state.conversation_paused:
         st.warning("⏸️ 会話が一時停止中です。サイドバーの「▶️ 再開」ボタンで続行できます。")
     
-    # 自動停止チェック
-    if st.session_state.conversation_active and should_stop_conversation():
-        stop_conversation()
-        st.rerun()
-    
-    # チャット表示エリア
+    # チャット表示エリア（常に表示）
     st.divider()
     
-    # メッセージ表示
+    # メッセージ表示（リアルタイム対応）
     if st.session_state.messages:
         st.subheader("💬 AI同士の会話")
         
-        # 全メッセージを表示
-        for message in st.session_state.messages:
-            display_message(
-                message['speaker'],
-                message['content'],
-                message['tokens'],
-                message['cost']
-            )
+        # メッセージ表示用のコンテナ
+        message_container = st.container()
+        
+        with message_container:
+            # 全メッセージを表示
+            for message in st.session_state.messages:
+                display_message(
+                    message['speaker'],
+                    message['content'],
+                    message['tokens'],
+                    message['cost']
+                )
+        
+        # 思考中の表示
+        if st.session_state.is_thinking and st.session_state.thinking_speaker:
+            with st.container():
+                speaker_style, icon = get_speaker_style(st.session_state.thinking_speaker)
+                thinking_html = f"""
+                <div class="chat-message {speaker_style}" style="opacity: 0.7; border-style: dashed;">
+                    <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                        <span class="speaker-icon">{icon}</span>
+                        <strong style="font-size: 1.1em;">{st.session_state.thinking_speaker}</strong>
+                        <span style="margin-left: 1rem; font-style: italic;">考え中...</span>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="animation: pulse 1.5s ease-in-out infinite;">💭</div>
+                        <span style="margin-left: 0.5rem; opacity: 0.8;">応答を生成中です...</span>
+                    </div>
+                </div>
+                """
+                st.markdown(thinking_html, unsafe_allow_html=True)
+        
+        # 会話中の状態表示
+        if st.session_state.conversation_active and not st.session_state.conversation_paused:
+            with st.container():
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.session_state.is_thinking:
+                        st.success(f"🎤 {st.session_state.thinking_speaker} が考え中...")
+                    else:
+                        st.info("🔄 AIたちが会話中...")
+                with col2:
+                    st.metric("メッセージ数", st.session_state.total_messages)
+                with col3:
+                    if st.session_state.cost_monitor:
+                        total_cost = sum(msg['cost'] for msg in st.session_state.messages)
+                        st.metric("総コスト", f"${total_cost:.4f}")
+        
+        # 自動スクロール用のJavaScript
+        scroll_script = """
+        <script>
+        function scrollToBottom() {
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+        setTimeout(scrollToBottom, 100);
+        </script>
+        """
+        st.markdown(scroll_script, unsafe_allow_html=True)
     
     else:
         # 初期画面
@@ -739,6 +800,42 @@ def main():
         - 最低2つのAPIキーが必要です
         - トークン制限を設定して費用をコントロールしてください
         """)
+    
+    # 自動停止チェック
+    if st.session_state.conversation_active and should_stop_conversation():
+        stop_conversation()
+        st.rerun()
+    
+    # 3秒間隔の自動進行（会話中のみ）- 最後に配置
+    if (st.session_state.conversation_active and 
+        not st.session_state.conversation_paused):
+        
+        current_time = time.time()
+        should_step = False
+        
+        if st.session_state.last_message_time is None:
+            should_step = True
+        elif current_time - st.session_state.last_message_time >= 3:  # 3秒間隔固定
+            should_step = True
+        
+        if should_step and not should_stop_conversation():
+            # 新しいメッセージ生成
+            conversation_step()
+            # 即座に画面を更新
+            st.rerun()
+        else:
+            # 待機中も短い間隔で画面を更新（0.5秒ごと）
+            remaining = 3 - (current_time - st.session_state.last_message_time)
+            if remaining > 0:
+                # 下部に次のメッセージまでの時間を表示
+                with st.container():
+                    progress_percentage = (3 - remaining) / 3 * 100
+                    st.progress(progress_percentage / 100)
+                    st.caption(f"⏳ 次のメッセージまで {remaining:.1f}秒...")
+                
+                # 0.5秒後に画面を更新（よりスムーズな表示）
+                time.sleep(0.5)
+                st.rerun()
 
 if __name__ == "__main__":
     main()
