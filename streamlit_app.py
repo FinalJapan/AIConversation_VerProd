@@ -451,7 +451,7 @@ def initialize_session_state():
 def setup_sidebar():
     """サイドバーのセットアップ"""
     with st.sidebar:
-        st.title("🤖 AI会話設定")
+        st.title("設定")
         
         # APIキー設定セクション
         st.subheader("🔑 APIキー設定")
@@ -513,7 +513,7 @@ def setup_sidebar():
             token_limit = st.number_input("カスタムトークン数", min_value=1000, max_value=200000, value=20000, key="custom_token_input")
         
         # テーマ設定
-        st.subheader("🎯 会話テーマ")
+        st.subheader("🎯 議題")
         theme_presets = [
             "恋愛について議論",
             "哲学について議論",
@@ -522,11 +522,11 @@ def setup_sidebar():
             "技術の未来について",
             "創作アイデアを考える"
         ]
-        selected_theme = st.selectbox("テーマを選択", theme_presets, key="theme_presets_select")
+        selected_theme = st.selectbox("議題を選択", theme_presets, key="theme_presets_select")
         
         # カスタムテーマ
-        if st.checkbox("テーマを設定", key="custom_theme_checkbox"):
-            selected_theme = st.text_input("カスタムテーマを入力", value=selected_theme, key="custom_theme_input")
+        if st.checkbox("自分で議題を設定", key="custom_theme_checkbox"):
+            selected_theme = st.text_input("議題を入力", value=selected_theme, key="custom_theme_input")
         
         st.divider()
         
@@ -858,8 +858,7 @@ def main():
         2. **トークン制限**: 使用量の上限を設定（費用制御）
         3. **テーマ選択**: AIたちが話し合うトピックを選択
         4. **会話開始**: 設定完了後、「🚀 会話開始」をクリック
-        5. **観察**: AI同士の3秒間隔での自動会話を観察
-        6. **制御**: 必要に応じて一時停止・再開・停止
+        5. **制御**: 必要に応じて一時停止・再開・停止
         """)
         
         # 注意事項
